@@ -29,7 +29,7 @@ return function(WindUI, PlayerMovement)
         
         local targetRoot = getRoot(targetPlayer.Character)
         if targetRoot and hrp then
-            hrp.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)  -- Safe offset above
+            hrp.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)
             WindUI:Notify({ Title = "Teleported", Content = "To " .. targetPlayer.Name })
         end
     end
@@ -45,10 +45,10 @@ return function(WindUI, PlayerMovement)
         return list
     end
 
-    -- Main dynamic dropdown
+    -- Create dropdown with initial list
     local playerDropdown = TpTab:Dropdown({
         Title = "Teleport to Player",
-        Values = GetPlayerList(),   -- Initial list
+        Values = GetPlayerList(),   -- Initial players
         Callback = function(selectedName)
             local target = Players:FindFirstChild(selectedName)
             if target then
@@ -57,24 +57,42 @@ return function(WindUI, PlayerMovement)
         end
     })
 
-    -- Refresh button (this fixes your issue)
+    -- Auto-refresh when players join/leave
+    Players.PlayerAdded:Connect(function()
+        task.wait(0.5)  -- Small delay for character loading
+        local newList = GetPlayerList()
+        if playerDropdown and playerDropdown.Refresh then
+            playerDropdown:Refresh(newList)
+        end
+    end)
+
+    Players.PlayerRemoving:Connect(function()
+        task.wait(0.3)
+        local newList = GetPlayerList()
+        if playerDropdown and playerDropdown.Refresh then
+            playerDropdown:Refresh(newList)
+        end
+    end)
+
+    -- Manual refresh button
     TpTab:Button({
         Title = "🔄 Refresh Player List",
         Callback = function()
             local newList = GetPlayerList()
-            playerDropdown:Refresh(newList)   -- WindUI supports :Refresh()
-            
+            if playerDropdown and playerDropdown.Refresh then
+                playerDropdown:Refresh(newList)
+            end
             WindUI:Notify({
                 Title = "Player List",
-                Content = "Refreshed! (" .. #newList .. " players)",
+                Content = "Updated (" .. #newList .. " players)",
             })
         end
     })
 
-    -- Fallback: Quick input teleport
+    -- Fallback Input (in case dropdown still has issues)
     TpTab:Input({
         Title = "Teleport by Username",
-        Placeholder = "Exact username",
+        Placeholder = "Type exact username",
         Callback = function(name)
             if name and name ~= "" then
                 local target = Players:FindFirstChild(name)
