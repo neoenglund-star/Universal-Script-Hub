@@ -1,7 +1,7 @@
 return function(WindUI, PlayerMovement)
     local JumpTab = PlayerMovement:Tab({
         Title = "JumpPower",
-        Icon = "gauge"  -- or "arrow-up" if your UI supports it
+        Icon = "arrow-up"  -- or "arrow-up" if your UI supports it
     })
 
     local Players = game:GetService("Players")
