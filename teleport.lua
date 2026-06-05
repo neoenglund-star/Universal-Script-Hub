@@ -16,21 +16,24 @@ return function(WindUI, PlayerMovement)
     end)
 
     local function getRoot(character)
-        return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+        return character:FindFirstChild("HumanoidRootPart") 
+            or character:FindFirstChild("Torso") 
+            or character:FindFirstChild("UpperTorso")
     end
 
     local function TeleportTo(targetPlayer)
         if not targetPlayer or not targetPlayer.Character then
+            WindUI:Notify({ Title = "Teleport", Content = "Player has no character!", Color = "Red" })
             return
         end
         
         local targetRoot = getRoot(targetPlayer.Character)
         if targetRoot and hrp then
-            hrp.CFrame = targetRoot.CFrame + Vector3.new(0, 3, 0)  -- Slight offset to avoid stacking
+            hrp.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)  -- Safe offset above
+            WindUI:Notify({ Title = "Teleported", Content = "To " .. targetPlayer.Name })
         end
     end
 
-    -- Get current players for dropdown
     local function GetPlayerList()
         local list = {}
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -42,10 +45,10 @@ return function(WindUI, PlayerMovement)
         return list
     end
 
-    -- Teleport to selected player (Dropdown)
-    TpTab:Dropdown({
+    -- Main dynamic dropdown
+    local playerDropdown = TpTab:Dropdown({
         Title = "Teleport to Player",
-        Options = GetPlayerList(),
+        Values = GetPlayerList(),   -- Initial list
         Callback = function(selectedName)
             local target = Players:FindFirstChild(selectedName)
             if target then
@@ -54,40 +57,31 @@ return function(WindUI, PlayerMovement)
         end
     })
 
-    -- Refresh button (important because players join/leave)
+    -- Refresh button (this fixes your issue)
     TpTab:Button({
-        Title = "Refresh Player List",
+        Title = "🔄 Refresh Player List",
         Callback = function()
-            -- Note: Some UIs require re-creating the dropdown, but if WindUI supports dynamic update, this helps
-            print("Player list refreshed - re-open dropdown")
+            local newList = GetPlayerList()
+            playerDropdown:Refresh(newList)   -- WindUI supports :Refresh()
+            
+            WindUI:Notify({
+                Title = "Player List",
+                Content = "Refreshed! (" .. #newList .. " players)",
+            })
         end
     })
 
-    -- Bring player to me
-    TpTab:Button({
-        Title = "Bring Player to Me",
-        Callback = function()
-            -- This would require a second dropdown or input, but for simplicity we'll add an Input version
-        end
-    })
-
-    -- Alternative: Input-based teleport (type username)
+    -- Fallback: Quick input teleport
     TpTab:Input({
-        Title = "Teleport to (Username)",
-        Placeholder = "PlayerName",
+        Title = "Teleport by Username",
+        Placeholder = "Exact username",
         Callback = function(name)
             if name and name ~= "" then
                 local target = Players:FindFirstChild(name)
                 if target then
                     TeleportTo(target)
                 else
-                    -- Try partial match
-                    for _, plr in ipairs(Players:GetPlayers()) do
-                        if plr.Name:lower():find(name:lower()) then
-                            TeleportTo(plr)
-                            return
-                        end
-                    end
+                    WindUI:Notify({ Title = "Error", Content = "Player not found", Color = "Red" })
                 end
             end
         end
