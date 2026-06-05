@@ -23,14 +23,13 @@ return function(WindUI, PlayerMovement)
 
     local function TeleportTo(targetPlayer)
         if not targetPlayer or not targetPlayer.Character then
-            WindUI:Notify({ Title = "Teleport", Content = "Player has no character!", Color = "Red" })
+            WindUI:Notify({Title = "Teleport", Content = "Player has no character!", Color = "Red"})
             return
         end
-        
         local targetRoot = getRoot(targetPlayer.Character)
         if targetRoot and hrp then
             hrp.CFrame = targetRoot.CFrame * CFrame.new(0, 3, 0)
-            WindUI:Notify({ Title = "Teleported", Content = "To " .. targetPlayer.Name })
+            WindUI:Notify({Title = "Teleported", Content = "To " .. targetPlayer.Name})
         end
     end
 
@@ -45,10 +44,10 @@ return function(WindUI, PlayerMovement)
         return list
     end
 
-    -- Create dropdown with initial list
+    -- Create dropdown with empty list first, then refresh immediately
     local playerDropdown = TpTab:Dropdown({
         Title = "Teleport to Player",
-        Values = GetPlayerList(),   -- Initial players
+        Values = {},  -- Start empty
         Callback = function(selectedName)
             local target = Players:FindFirstChild(selectedName)
             if target then
@@ -57,39 +56,37 @@ return function(WindUI, PlayerMovement)
         end
     })
 
-    -- Auto-refresh when players join/leave
+    -- Initial population
+    task.spawn(function()
+        task.wait(0.5)  -- Give time for UI to initialize
+        playerDropdown:Refresh(GetPlayerList())
+    end)
+
+    -- Auto refresh on player join/leave
     Players.PlayerAdded:Connect(function()
-        task.wait(0.5)  -- Small delay for character loading
-        local newList = GetPlayerList()
-        if playerDropdown and playerDropdown.Refresh then
-            playerDropdown:Refresh(newList)
-        end
+        task.wait(0.5)
+        playerDropdown:Refresh(GetPlayerList())
     end)
 
     Players.PlayerRemoving:Connect(function()
         task.wait(0.3)
-        local newList = GetPlayerList()
-        if playerDropdown and playerDropdown.Refresh then
-            playerDropdown:Refresh(newList)
-        end
+        playerDropdown:Refresh(GetPlayerList())
     end)
 
-    -- Manual refresh button
+    -- Manual Refresh Button
     TpTab:Button({
         Title = "🔄 Refresh Player List",
         Callback = function()
-            local newList = GetPlayerList()
-            if playerDropdown and playerDropdown.Refresh then
-                playerDropdown:Refresh(newList)
-            end
+            local list = GetPlayerList()
+            playerDropdown:Refresh(list)
             WindUI:Notify({
                 Title = "Player List",
-                Content = "Updated (" .. #newList .. " players)",
+                Content = "Refreshed (" .. #list .. " players)"
             })
         end
     })
 
-    -- Fallback Input (in case dropdown still has issues)
+    -- Fallback Input (always works)
     TpTab:Input({
         Title = "Teleport by Username",
         Placeholder = "Type exact username",
@@ -99,7 +96,7 @@ return function(WindUI, PlayerMovement)
                 if target then
                     TeleportTo(target)
                 else
-                    WindUI:Notify({ Title = "Error", Content = "Player not found", Color = "Red" })
+                    WindUI:Notify({Title = "Error", Content = "Player not found", Color = "Red"})
                 end
             end
         end
