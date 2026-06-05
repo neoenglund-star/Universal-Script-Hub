@@ -5,12 +5,12 @@ return function(WindUI, PlayerMovement)
     })
 
     local flying = false
-    local speed = 50  -- Default speed (IY uses multipliers like 1, but we'll adapt)
+    local speed = 50  -- This will control iyflyspeed multiplier
 
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local UserInputService = game:GetService("UserInputService")
-    
+
     local lp = Players.LocalPlayer
     local char = lp.Character or lp.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
@@ -18,46 +18,47 @@ return function(WindUI, PlayerMovement)
 
     lp.CharacterAdded:Connect(function(c)
         char = c
-        hrp = char:WaitForChild("HumanoidRootPart")
-        humanoid = char:FindFirstChildOfClass("Humanoid")
+        hrp = c:WaitForChild("HumanoidRootPart")
+        humanoid = c:FindFirstChildOfClass("Humanoid")
     end)
 
-    -- IY-style variables
+    -- IY Variables
     local FLYING = false
+    local QEfly = true
+    local iyflyspeed = 1
     local flyKeyDown, flyKeyUp
-    local iyflyspeed = 1  -- Multiplier (IY default)
+
+    local function getRoot(char)
+        return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+    end
 
     local function sFLY(vfly)
-        FLYING = true
+        if flyKeyDown or flyKeyUp then
+            pcall(function() flyKeyDown:Disconnect() end)
+            pcall(function() flyKeyUp:Disconnect() end)
+        end
+
         local plr = Players.LocalPlayer
         local char = plr.Character or plr.CharacterAdded:Wait()
         local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if not humanoid then
-            repeat task.wait() until char:FindFirstChildOfClass("Humanoid")
-            humanoid = char:FindFirstChildOfClass("Humanoid")
-        end
+        local T = getRoot(char)
 
-        if flyKeyDown or flyKeyUp then
-            flyKeyDown:Disconnect()
-            flyKeyUp:Disconnect()
-        end
+        if not T then return end
 
-        local T = hrp  -- HumanoidRootPart
         local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
         local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
         local SPEED = 0
 
         local function FLY()
             FLYING = true
-            local BG = Instance.new('BodyGyro')
-            local BV = Instance.new('BodyVelocity')
+            local BG = Instance.new("BodyGyro")
+            local BV = Instance.new("BodyVelocity")
             BG.P = 9e4
-            BG.Parent = T
-            BV.Parent = T
             BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
             BG.CFrame = T.CFrame
-            BV.Velocity = Vector3.new(0, 0, 0)
+            BG.Parent = T
             BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            BV.Parent = T
 
             task.spawn(function()
                 repeat task.wait()
@@ -67,35 +68,34 @@ return function(WindUI, PlayerMovement)
                     end
 
                     if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
-                        SPEED = speed  -- Use your custom speed
-                    elseif not (CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0) and SPEED ~= 0 then
+                        SPEED = speed
+                    elseif SPEED ~= 0 then
                         SPEED = 0
                     end
 
                     if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
-                        BV.Velocity = ((camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) + ((camera.CFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - camera.CFrame.p)) * SPEED
+                        BV.Velocity = ((camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) + 
+                                      (camera.CFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).Position - camera.CFrame.Position)) * SPEED
                         lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
-                    elseif (CONTROL.L + CONTROL.R) == 0 and (CONTROL.F + CONTROL.B) == 0 and (CONTROL.Q + CONTROL.E) == 0 and SPEED ~= 0 then
-                        BV.Velocity = ((camera.CFrame.LookVector * (lCONTROL.F + lCONTROL.B)) + ((camera.CFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - camera.CFrame.p)) * SPEED
+                    elseif SPEED ~= 0 then
+                        BV.Velocity = ((camera.CFrame.LookVector * (lCONTROL.F + lCONTROL.B)) + 
+                                      (camera.CFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).Position - camera.CFrame.Position)) * SPEED
                     else
-                        BV.Velocity = Vector3.new(0, 0, 0)
+                        BV.Velocity = Vector3.zero
                     end
+
                     BG.CFrame = camera.CFrame
                 until not FLYING
 
-                CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-                lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-                SPEED = 0
                 BG:Destroy()
                 BV:Destroy()
-
                 if humanoid then humanoid.PlatformStand = false end
             end)
         end
 
         flyKeyDown = UserInputService.InputBegan:Connect(function(input, processed)
             if processed then return end
-            local mult = (vfly and 1 or iyflyspeed) * speed / 50  -- Scale to your speed var
+            local mult = vfly and 1 or iyflyspeed
             if input.KeyCode == Enum.KeyCode.W then
                 CONTROL.F = mult
             elseif input.KeyCode == Enum.KeyCode.S then
@@ -104,27 +104,20 @@ return function(WindUI, PlayerMovement)
                 CONTROL.L = -mult
             elseif input.KeyCode == Enum.KeyCode.D then
                 CONTROL.R = mult
-            elseif input.KeyCode == Enum.KeyCode.E then
+            elseif input.KeyCode == Enum.KeyCode.E and QEfly then
                 CONTROL.Q = mult * 2
-            elseif input.KeyCode == Enum.KeyCode.Q then
+            elseif input.KeyCode == Enum.KeyCode.Q and QEfly then
                 CONTROL.E = -mult * 2
             end
         end)
 
-        flyKeyUp = UserInputService.InputEnded:Connect(function(input, processed)
-            if processed then return end
-            if input.KeyCode == Enum.KeyCode.W then
-                CONTROL.F = 0
-            elseif input.KeyCode == Enum.KeyCode.S then
-                CONTROL.B = 0
-            elseif input.KeyCode == Enum.KeyCode.A then
-                CONTROL.L = 0
-            elseif input.KeyCode == Enum.KeyCode.D then
-                CONTROL.R = 0
-            elseif input.KeyCode == Enum.KeyCode.E then
-                CONTROL.Q = 0
-            elseif input.KeyCode == Enum.KeyCode.Q then
-                CONTROL.E = 0
+        flyKeyUp = UserInputService.InputEnded:Connect(function(input)
+            if input.KeyCode == Enum.KeyCode.W then CONTROL.F = 0
+            elseif input.KeyCode == Enum.KeyCode.S then CONTROL.B = 0
+            elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = 0
+            elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = 0
+            elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = 0
+            elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = 0
             end
         end)
 
@@ -133,10 +126,11 @@ return function(WindUI, PlayerMovement)
 
     local function NOFLY()
         FLYING = false
-        if flyKeyDown or flyKeyUp then 
-            flyKeyDown:Disconnect() 
-            flyKeyUp:Disconnect() 
-        end
+        if flyKeyDown then flyKeyDown:Disconnect() end
+        if flyKeyUp then flyKeyUp:Disconnect() end
+        flyKeyDown = nil
+        flyKeyUp = nil
+
         if humanoid then
             humanoid.PlatformStand = false
         end
@@ -145,10 +139,11 @@ return function(WindUI, PlayerMovement)
     FlyTab:Toggle({
         Title = "Fly",
         Callback = function(v)
+            flying = v
             if v then
-                NOFLY()  -- Clean previous
+                NOFLY()
                 task.wait()
-                sFLY()   -- Use IY logic (normal fly)
+                sFLY(false)  -- normal fly
             else
                 NOFLY()
             end
@@ -159,9 +154,9 @@ return function(WindUI, PlayerMovement)
         Title = "Speed",
         Callback = function(v)
             local n = tonumber(v)
-            if n then 
-                speed = n 
-                iyflyspeed = n / 50  -- Keep multiplier in sync
+            if n then
+                speed = n
+                iyflyspeed = n / 50  -- IY internal scaling
             end
         end
     })
